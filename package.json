@@ -1,0 +1,7 @@
+{
+	"name": "pdf-to-csv-vercel",
+	"type": "module",
+	"dependencies": {
+		"pdf-parse": "^1.1.1"
+	}
+}
