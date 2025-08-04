@@ -2,38 +2,41 @@ import pdf from 'pdf-parse';
 
 export const config = {
 	api: {
-		bodyParser: false, // we'll manually handle raw PDF buffer
+		bodyParser: false,
 	},
 };
 
 export default async function handler(req, res) {
 	if (req.method !== 'POST') {
-		return res.status(405).send('Method Not Allowed');
+		res.status(405).send('Only POST supported');
+		return;
 	}
 
 	try {
-		const buffers = [];
-
-		req.on('data', (chunk) => buffers.push(chunk));
+		const chunks = [];
+		req.on('data', (chunk) => chunks.push(chunk));
 		req.on('end', async () => {
-			const pdfBuffer = Buffer.concat(buffers);
-			const parsed = await pdf(pdfBuffer);
+			const buffer = Buffer.concat(chunks);
 
-			// Simple CSV: turn lines into rows, break long spaces into commas
-			const lines = parsed.text
-				.split('\n')
-				.map((line) => line.trim().replace(/\s{2,}/g, ','));
+			try {
+				const parsed = await pdf(buffer);
+				const lines = parsed.text
+					.split('\n')
+					.map((line) => line.trim().replace(/\s{2,}/g, ','));
 
-			const csv = lines.join('\n');
-
-			res.setHeader('Content-Type', 'text/csv');
-			res.setHeader(
-				'Content-Disposition',
-				'inline; filename="result.csv"'
-			);
-			res.status(200).send(csv);
+				res.setHeader('Content-Type', 'text/csv');
+				res.setHeader(
+					'Content-Disposition',
+					'inline; filename="output.csv"'
+				);
+				res.status(200).send(lines.join('\n'));
+			} catch (innerErr) {
+				console.error('PDF parse error:', innerErr);
+				res.status(500).send('Error parsing PDF');
+			}
 		});
 	} catch (err) {
-		res.status(500).send('Error parsing PDF');
+		console.error('Request error:', err);
+		res.status(500).send('Server error');
 	}
 }
